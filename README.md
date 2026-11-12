@@ -41,7 +41,7 @@ DEVIN_TOKEN='devin-session-token$...' ./devin-gateway
 # Windows PowerShell: $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
 ```
 
-Prebuilt binaries for macOS/Linux/Windows will ship with the first tagged release.
+Prebuilt binaries are not published yet; build from source as shown above (planned for a later release).
 The binary ships a **built-in default config** — only `DEVIN_TOKEN` is required.
 
 ## Client setup

@@ -39,7 +39,7 @@ DEVIN_TOKEN='devin-session-token$...' ./devin-gateway
 # Windows PowerShell: $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
 ```
 
-macOS / Linux / Windows 的预构建二进制会在首个 tag release 时提供。
+预构建二进制尚未提供，先用上面的 `go build`（计划在后续版本发布）。
 二进制同样**内置默认配置**，只需要 `DEVIN_TOKEN`。
 
 ## 客户端配置
