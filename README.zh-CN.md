@@ -31,15 +31,19 @@ make up       # 本地构建并启动
 make smoke    # 六项自检
 ```
 
-### 不用 Docker（自己编译）
+### 不用 Docker
+
+从 [Releases](https://github.com/xiaohai-78/devin-gateway/releases/latest) 下载对应平台的压缩包：
 
 ```bash
-go build -o devin-gateway ./cmd/devin-gateway
+tar -xzf devin-gateway_*_darwin_arm64.tar.gz   # 换成你的平台
+chmod +x devin-gateway
 DEVIN_TOKEN='devin-session-token$...' ./devin-gateway
-# Windows PowerShell: $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
+# Windows：解压后 $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
 ```
 
-预构建二进制尚未提供，先用上面的 `go build`（计划在后续版本发布）。
+也可以自己编译：`go build -o devin-gateway ./cmd/devin-gateway`。
+
 二进制同样**内置默认配置**，只需要 `DEVIN_TOKEN`。
 
 ## 客户端配置

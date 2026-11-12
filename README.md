@@ -33,15 +33,20 @@ make up       # build locally and start
 make smoke    # six checks
 ```
 
-### No Docker (build it yourself)
+### No Docker
+
+Download the binary for your platform from
+[Releases](https://github.com/xiaohai-78/devin-gateway/releases/latest), then:
 
 ```bash
-go build -o devin-gateway ./cmd/devin-gateway
+tar -xzf devin-gateway_*_darwin_arm64.tar.gz   # 按你的平台换文件名
+chmod +x devin-gateway
 DEVIN_TOKEN='devin-session-token$...' ./devin-gateway
-# Windows PowerShell: $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
+# Windows: 解压后 $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
 ```
 
-Prebuilt binaries are not published yet; build from source as shown above (planned for a later release).
+Or build from source: `go build -o devin-gateway ./cmd/devin-gateway`.
+
 The binary ships a **built-in default config** — only `DEVIN_TOKEN` is required.
 
 ## Client setup

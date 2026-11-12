@@ -1,0 +1,106 @@
+name: Release binaries
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux,   goarch: amd64 }
+          - { goos: linux,   goarch: arm64 }
+          - { goos: darwin,  goarch: amd64 }
+          - { goos: darwin,  goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "asset=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+            echo "asset=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -eu
+          bin=devin-gateway
+          [ "$GOOS" = "windows" ] && bin=devin-gateway.exe
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "dist/$bin" ./cmd/devin-gateway
+          # 只有 linux 产物能在 runner 上直接执行，其余架构仅编译
+          if [ "$GOOS" = "linux" ]; then ./dist/$bin -version; fi
+
+      - name: Package
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          ASSET_VERSION: ${{ steps.version.outputs.asset }}
+        run: |
+          set -eu
+          name="devin-gateway_${ASSET_VERSION}_${GOOS}_${GOARCH}"
+          mkdir -p "stage/$name" out
+          cp dist/devin-gateway* "stage/$name/"
+          cp LICENSE NOTICE THIRD_PARTY_LICENSES "stage/$name/"
+          if [ "$GOOS" = "windows" ]; then
+            (cd stage && zip -qr "../out/${name}.zip" "$name")
+          else
+            (cd stage && tar -czf "../out/${name}.tar.gz" "$name")
+          fi
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Attach to GitHub Release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          set -eu
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
+          gh release upload "$TAG" dist/* --clobber
