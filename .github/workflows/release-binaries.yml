@@ -99,6 +99,8 @@ jobs:
       - name: Upload assets
         env:
           GH_TOKEN: ${{ github.token }}
+          # 发布任务没有 checkout，gh 需要显式知道仓库
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
           set -eu
