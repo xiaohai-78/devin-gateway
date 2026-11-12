@@ -1,0 +1,44 @@
+devin-gateway
+=============
+
+This repository is a self-contained OpenAI-compatible gateway for Devin
+models, plus deployment files (Docker Compose, Makefile, shell scripts).
+
+Origin of the Go source
+-----------------------
+
+The Go source under cmd/ and internal/ is derived from the projects below
+(MIT License; their copyright notices are kept in LICENSE). Only the Go module
+path was changed.
+
+devin-2api-lite
+  Copyright (c) 2026 Green-hats
+  https://github.com/Green-hats/devin-2api-lite
+  Imported from commit f28da5e41e0f32224a227fa9dae4d9c583d3cb06.
+
+devin-2api (the project devin-2api-lite is forked from)
+  Copyright (c) 2026 leookun
+  https://github.com/leookun/devin-2api
+
+Third-party dependencies
+------------------------
+
+gopkg.in/yaml.v3 v3.0.1
+  Copyright (c) 2006-2012 Kirill Simonov
+  Copyright (c) 2011-2019 Canonical Ltd
+  https://github.com/go-yaml/yaml
+  Licensed under MIT and Apache-2.0; the full text is reproduced in
+  THIRD_PARTY_LICENSES and shipped inside the container image.
+
+No other third-party code is linked into the gateway.
+
+Trademarks and protocol
+-----------------------
+
+The Devin / Windsurf / Codeium / Cognition protocol implemented by this
+gateway is proprietary and undocumented. This project is not affiliated with,
+endorsed by, or supported by any of those companies. It accesses the upstream
+service with a session token supplied by the operator; use it only in
+accordance with the upstream terms of service.
+
+The "Devin" name is used descriptively only.

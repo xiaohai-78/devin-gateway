@@ -1,0 +1,13 @@
+# 凭据：永远不要提交
+.env
+config.local.yaml
+
+# 构建与运行产物
+bin/
+logs/
+*.log
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/

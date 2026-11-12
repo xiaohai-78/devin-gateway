@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Go vet + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
+      - name: Shellcheck
+        run: shellcheck -x scripts/*.sh
+
+  build:
+    name: Build gateway image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare dummy env (no real credentials in CI)
+        run: |
+          printf "DEVIN_TOKEN='dummy-token'\nPORT=18089\nAUTH_API_KEY=\n" > .env
+
+      - name: Validate compose files
+        run: |
+          docker compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml config -q
+
+      - name: Build image (dev overlay)
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml build
+
+      - name: Binary sanity (-version)
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm gateway -version
+
+      - name: Start container and check health
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18089/healthz >/dev/null 2>&1; then
+              echo "healthz OK"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "healthz did not come up"
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --tail=50
+          exit 1
+
+      - name: Stop
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v

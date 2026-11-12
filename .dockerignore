@@ -1,0 +1,10 @@
+.git
+.github
+.env
+.env.*
+logs
+docs
+scripts
+*.md
+config.yaml
+config.local.yaml

@@ -1,0 +1,32 @@
+# 内置默认配置：仅当 --config 指向的文件不存在时使用。
+#
+# 设计目标：镜像与发布二进制无需附带 config.yaml 即可启动，
+# 用户只需提供 DEVIN_TOKEN（以及可选的 DEVIN_MODEL、AUTH_API_KEY 等环境变量）。
+#
+# 所有字段都能被环境变量覆盖，见 docs/configuration.zh-CN.md。
+server:
+  # 容器内监听所有网卡；宿主机侧由 compose 的 127.0.0.1:<PORT> 限定只走回环
+  listen: ":18089"
+
+catalog:
+  # 内置默认不写快照：容器里挂载目录可能不可写
+  snapshot: ""
+  refresh: "5m"
+  model_mode: "openai"
+  auto_tiers: true
+
+debug:
+  enabled: false
+
+devin:
+  base_url: "https://server.codeium.com"
+  # 真正的 token 由 DEVIN_TOKEN 环境变量注入
+  token: ""
+  # 上游请求必须带一个模型 uid；可用 DEVIN_MODEL 覆盖
+  model: "glm-5-2"
+  proxy: ""
+  force_http1: true
+  stream_idle_timeout: "5m"
+
+auth:
+  api_key: ""

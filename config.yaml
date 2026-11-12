@@ -1,0 +1,54 @@
+# 可选：完整配置示例（默认不生效，镜像内置了同样的默认值）。
+#
+# 用法：docker run -v "$PWD/config.yaml:/app/config.yaml:ro" ...
+#      或 docker-compose.yml 里取消 volumes 注释。
+#
+# 所有字段都能被环境变量覆盖（见文末），所以通常只需要 DEVIN_TOKEN。
+server:
+  # 容器内监听所有网卡；宿主机侧由 compose 的 127.0.0.1:<PORT> 限定只走回环
+  listen: ":18089"
+  # 同时处理的 /v1/* 请求上限；0 或省略 = 1024
+  max_concurrency: 1024
+
+catalog:
+  # 目录快照；留空不写。容器里建议留空，避免挂载目录不可写
+  snapshot: ""
+  # 目录刷新间隔
+  refresh: "5m"
+  # raw = 上游原始 id；openai = 基础模型；both = 两者都列
+  model_mode: "openai"
+  # 从 family metadata 生成基础模型与档位建议
+  auto_tiers: true
+
+debug:
+  # 开启后每个请求把完整提示词写到 logs/<时间>/（注意隐私）
+  enabled: false
+
+devin:
+  base_url: "https://server.codeium.com"
+  # 留空，由 DEVIN_TOKEN 环境变量覆盖
+  token: ""
+  # 上游请求必须带一个模型 uid；可用 DEVIN_MODEL 覆盖
+  model: "glm-5-2"
+  # 代理地址（可选），支持 http:// 与 https://
+  proxy: ""
+  # 强制 HTTP/1.1：避免 HTTP/2 多 stream 复用被上游串行处理
+  force_http1: true
+  # 上游两帧之间的最长等待；超时返回 504，0 表示不限制
+  stream_idle_timeout: "5m"
+  # 推理档位映射：model + reasoning_effort → 实际上游 uid（未配置则原样透传）
+  # reasoning_tiers:
+  #   swe-2:
+  #     medium: swe-2-medium
+  #     high: swe-2-high
+
+auth:
+  # 留空 = 不校验；对外暴露时请用 AUTH_API_KEY 覆盖，或在这里写强随机串
+  api_key: ""
+
+# 环境变量优先于本文件：
+#   SERVER_LISTEN, SERVER_MAX_CONCURRENCY
+#   DEVIN_BASE_URL, DEVIN_TOKEN, DEVIN_MODEL, DEVIN_PROXY,
+#   DEVIN_FORCE_HTTP1, DEVIN_STREAM_IDLE_TIMEOUT
+#   DEBUG_ENABLED, AUTH_API_KEY
+#   CATALOG_SNAPSHOT, CATALOG_REFRESH, CATALOG_MODEL_MODE, CATALOG_AUTO_TIERS

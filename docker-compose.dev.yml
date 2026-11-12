@@ -1,0 +1,6 @@
+# 本地开发叠加层：从当前目录构建，不拉 GHCR 镜像。
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+services:
+  gateway:
+    build: .
+    image: devin-gateway:local
