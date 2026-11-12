@@ -11,6 +11,9 @@ SHELL_SCRIPTS := $(addprefix /mnt/,$(notdir $(wildcard scripts/*.sh)))
 # 默认拉预构建镜像；dev 叠加层改为本地构建
 COMPOSE ?= docker compose -f docker-compose.yml
 COMPOSE_DEV := $(COMPOSE) -f docker-compose.dev.yml
+# 本地构建的版本标识：tag 或短哈希（含 -dirty）
+GIT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo '')
 
 .PHONY: help token up up-image down logs ps smoke check lint test ci clean
 
@@ -31,7 +34,7 @@ token:
 
 up:
 	@test -f .env || { echo "缺少 .env：先运行 make token，或 cp .env.example .env 后填 DEVIN_TOKEN"; exit 1; }
-	$(COMPOSE_DEV) up -d --build
+	GATEWAY_VERSION="$(GIT_VERSION)" GATEWAY_COMMIT="$(GIT_COMMIT)" $(COMPOSE_DEV) up -d --build
 	@echo
 	@echo "网关地址：$(BASE_URL)/v1"
 	@echo "自检：  make smoke"

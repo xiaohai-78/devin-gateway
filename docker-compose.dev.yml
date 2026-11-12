@@ -2,5 +2,9 @@
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 services:
   gateway:
-    build: .
+    build:
+      context: .
+      args:
+        VERSION: ${GATEWAY_VERSION:-dev}
+        COMMIT: ${GATEWAY_COMMIT:-}
     image: devin-gateway:local

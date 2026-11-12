@@ -2,6 +2,9 @@
 FROM --platform=$BUILDPLATFORM golang:1.26.3-alpine AS builder
 
 ARG TARGETARCH
+# 构建信息：release-image.yml 传入 tag 与提交短哈希，本地产物默认 dev
+ARG VERSION=dev
+ARG COMMIT=
 
 WORKDIR /src
 
@@ -11,7 +14,9 @@ RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/devin-gateway ./cmd/devin-gateway
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -trimpath \
+    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+    -o /out/devin-gateway ./cmd/devin-gateway
 
 FROM alpine:3.22
 

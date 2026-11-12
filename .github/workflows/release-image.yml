@@ -26,6 +26,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build info
+        id: buildinfo
+        run: |
+          echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "commit=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Image metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -37,6 +43,13 @@ jobs:
             type=sha,format=short
             type=raw,value=latest
 
+      - name: Verify version injection
+        run: |
+          docker buildx build --platform linux/amd64 --load -t devin-gateway:verify \
+            --build-arg VERSION="${{ steps.buildinfo.outputs.version }}" \
+            --build-arg COMMIT="${{ steps.buildinfo.outputs.commit }}" .
+          docker run --rm devin-gateway:verify -version
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -45,5 +58,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.buildinfo.outputs.version }}
+            COMMIT=${{ steps.buildinfo.outputs.commit }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

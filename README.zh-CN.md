@@ -21,7 +21,6 @@ token 从哪来：macOS 跑 `bash scripts/token-macos.sh`（会自动写 `.env`�
 Windows 跑 `powershell -ExecutionPolicy Bypass -File .\scripts\token-windows.ps1`；
 其他系统从装了 Devin 桌面版的机器上复制 `devin-session-token$...` 值。
 
-> 镜像发布之前 `docker compose up -d` 没有可拉取的镜像，改用 `make up`（本地构建）。
 
 ### 本机开发
 
@@ -36,10 +35,12 @@ make smoke    # 六项自检
 从 [Releases](https://github.com/xiaohai-78/devin-gateway/releases/latest) 下载对应平台的压缩包：
 
 ```bash
-tar -xzf devin-gateway_*_darwin_arm64.tar.gz   # 换成你的平台
+# macOS/Linux 用 .tar.gz；Windows 用 .zip
+tar -xzf devin-gateway_0.1.2_darwin_arm64.tar.gz   # 换成你的平台
 chmod +x devin-gateway
 DEVIN_TOKEN='devin-session-token$...' ./devin-gateway
-# Windows：解压后 $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
+# Windows（PowerShell）：解压 .zip 后
+# $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
 ```
 
 也可以自己编译：`go build -o devin-gateway ./cmd/devin-gateway`。

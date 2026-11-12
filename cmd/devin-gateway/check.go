@@ -21,6 +21,9 @@ import (
 // version 是未注入构建信息时的默认版本。
 var version = "dev"
 
+// commit 是可注入的提交短哈希；为构建产物提供可追溯性。
+var commit = ""
+
 // versionString 返回可读版本号；优先使用模块版本与 Git 提交。
 func versionString() string {
 	info, ok := debug.ReadBuildInfo()
@@ -30,7 +33,7 @@ func versionString() string {
 	if info.Main.Version != "" && info.Main.Version != "(devel)" {
 		version = info.Main.Version
 	}
-	revision := ""
+	revision := commit
 	for _, setting := range info.Settings {
 		if setting.Key == "vcs.revision" && len(setting.Value) >= 7 {
 			revision = setting.Value[:7]

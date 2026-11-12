@@ -45,12 +45,13 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
           VERSION: ${{ steps.version.outputs.value }}
+          COMMIT: ${{ github.sha }}
         run: |
           set -eu
           bin=devin-gateway
           [ "$GOOS" = "windows" ] && bin=devin-gateway.exe
           mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "dist/$bin" ./cmd/devin-gateway
+          go build -trimpath -ldflags "-s -w -X main.version=$VERSION -X main.commit=${COMMIT:0:7}" -o "dist/$bin" ./cmd/devin-gateway
           # 只有与本机架构一致的 linux 产物能直接执行，其余仅编译
           if [ "$GOOS" = "linux" ] && [ "$GOARCH" = "$(go env GOHOSTARCH)" ]; then ./dist/$bin -version; fi
 

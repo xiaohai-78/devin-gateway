@@ -22,8 +22,6 @@ Where does the token come from? On macOS run `bash scripts/token-macos.sh` (it w
 on Windows run `powershell -ExecutionPolicy Bypass -File .\scripts\token-windows.ps1`.
 Anywhere else, copy a `devin-session-token$...` value from a machine that has the Devin app.
 
-> Before the first image release, `docker compose up -d` has nothing to pull — use `make up`
-> (builds locally) instead.
 
 ### Local development
 
@@ -39,10 +37,12 @@ Download the binary for your platform from
 [Releases](https://github.com/xiaohai-78/devin-gateway/releases/latest), then:
 
 ```bash
-tar -xzf devin-gateway_*_darwin_arm64.tar.gz   # 按你的平台换文件名
+# macOS/Linux: .tar.gz archive; Windows: .zip archive
+tar -xzf devin-gateway_0.1.2_darwin_arm64.tar.gz   # use your platform's file
 chmod +x devin-gateway
 DEVIN_TOKEN='devin-session-token$...' ./devin-gateway
-# Windows: 解压后 $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
+# Windows (PowerShell): expand-archive the .zip, then
+# $env:DEVIN_TOKEN='...'; .\devin-gateway.exe
 ```
 
 Or build from source: `go build -o devin-gateway ./cmd/devin-gateway`.
