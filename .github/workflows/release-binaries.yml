@@ -51,8 +51,8 @@ jobs:
           [ "$GOOS" = "windows" ] && bin=devin-gateway.exe
           mkdir -p dist
           go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "dist/$bin" ./cmd/devin-gateway
-          # 只有 linux 产物能在 runner 上直接执行，其余架构仅编译
-          if [ "$GOOS" = "linux" ]; then ./dist/$bin -version; fi
+          # 只有与本机架构一致的 linux 产物能直接执行，其余仅编译
+          if [ "$GOOS" = "linux" ] && [ "$GOARCH" = "$(go env GOHOSTARCH)" ]; then ./dist/$bin -version; fi
 
       - name: Package
         env:
