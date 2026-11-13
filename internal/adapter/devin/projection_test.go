@@ -44,3 +44,67 @@ func TestProjectModelsModes(t *testing.T) {
 		t.Fatalf("raw = %#v", raw)
 	}
 }
+
+// TestProjectModelsRealBase 验证基础 id 本身是真实模型时：保留真实条目与档位条目，
+// 挂上可选 reasoning_efforts，但不标 requires_reasoning_effort（不传 effort 也能调用）。
+func TestProjectModelsRealBase(t *testing.T) {
+	actual := []adapter.ModelInfo{
+		{ID: "swe-1-7", Family: "SWE-1.7"},
+		{ID: "swe-1-7-medium", Family: "SWE-1.7", Effort: "medium"},
+		{ID: "kimi-k2-7"},
+	}
+	tiers := map[string]map[string]string{
+		"swe-1-7": {"medium": "swe-1-7-medium", "max": "swe-1-7-max"}, // max 不在目录里
+	}
+
+	visible := projectModels(actual, tiers, "openai")
+	byID := make(map[string]adapter.ModelInfo, len(visible))
+	for _, model := range visible {
+		byID[model.ID] = model
+	}
+	base, ok := byID["swe-1-7"]
+	if !ok {
+		t.Fatalf("real base missing: %#v", visible)
+	}
+	if base.RequiresReasoningEffort {
+		t.Fatalf("real base must not require effort: %#v", base)
+	}
+	if len(base.ReasoningEfforts) != 1 || base.ReasoningEfforts[0] != "medium" {
+		t.Fatalf("real base efforts = %#v, want [medium]", base.ReasoningEfforts)
+	}
+	if _, ok := byID["swe-1-7-medium"]; !ok {
+		t.Fatalf("tier entry of a real base must stay visible: %#v", visible)
+	}
+	if kimi := byID["kimi-k2-7"]; kimi.RequiresReasoningEffort || len(kimi.ReasoningEfforts) != 0 {
+		t.Fatalf("unrelated model changed: %#v", kimi)
+	}
+	// 投影不能改到调用方的切片。
+	if len(actual[0].ReasoningEfforts) != 0 {
+		t.Fatalf("projectModels mutated input: %#v", actual[0])
+	}
+}
+
+// TestProjectModelsPlaceholderBase 验证为 devin.model 补的占位条目和基础 id 同名时，
+// 仍按合成基础模型展示（requires_reasoning_effort=true），且只出现一次。
+func TestProjectModelsPlaceholderBase(t *testing.T) {
+	actual := []adapter.ModelInfo{
+		{ID: "swe-2-high", Family: "SWE-2", Effort: "high"},
+		{ID: "swe-2", Placeholder: true},
+	}
+	tiers := map[string]map[string]string{"swe-2": {"high": "swe-2-high"}}
+
+	visible := projectModels(actual, tiers, "openai")
+	count := 0
+	for _, model := range visible {
+		if model.ID != "swe-2" {
+			continue
+		}
+		count++
+		if !model.RequiresReasoningEffort {
+			t.Fatalf("placeholder base must be shown as synthetic: %#v", model)
+		}
+	}
+	if count != 1 {
+		t.Fatalf("swe-2 appears %d times: %#v", count, visible)
+	}
+}

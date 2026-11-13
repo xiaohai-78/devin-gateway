@@ -4,12 +4,13 @@
 #   scripts/smoke.sh                       # http://127.0.0.1:18089
 #   scripts/smoke.sh http://10.0.0.5:18089
 #   MODEL=<model-id> scripts/smoke.sh       # 跳过自动选模型
+#   AUTH_API_KEY=<key> scripts/smoke.sh     # 网关开了鉴权时（make smoke 会自动读 .env）
 #
 # 不需要 python3：有 jq 用 jq，没有就用 python3，都没有就退化为文本匹配。
 set -uo pipefail
 
 BASE="${1:-http://127.0.0.1:18089}"
-KEY="${DEVIN2API_API_KEY:-local}"
+KEY="${AUTH_API_KEY:-local}"
 MODEL="${MODEL:-}"
 
 pass=0; fail=0
@@ -62,7 +63,7 @@ echo "== target: $BASE"
 curl -fsS -m 5 "$BASE/healthz" >/dev/null 2>&1
 chk $? "healthz"
 
-MODELS_BODY="$(curl -fsS -m 30 "$BASE/v1/models" 2>/dev/null)" || MODELS_BODY=""
+MODELS_BODY="$(curl -fsS -m 30 -H "Authorization: Bearer $KEY" "$BASE/v1/models" 2>/dev/null)" || MODELS_BODY=""
 if [ -n "$MODELS_BODY" ]; then
   N="$(count_models "$MODELS_BODY")"
   if [ "${N:-0}" -gt 0 ]; then chk 0 "/v1/models（${N} 个）"; else chk 1 "/v1/models（0 个）"; fi
@@ -74,7 +75,7 @@ fi
 [ -n "$MODEL" ] || MODEL="claude-sonnet-4-6-1m"
 echo "== model: $MODEL"
 
-curl -fsS -m 15 "$BASE/v1/quota" >/dev/null 2>&1
+curl -fsS -m 15 -H "Authorization: Bearer $KEY" "$BASE/v1/quota" >/dev/null 2>&1
 chk $? "/v1/quota"
 
 CHAT_BODY="$(curl -fsS -m 60 "$BASE/v1/chat/completions" \

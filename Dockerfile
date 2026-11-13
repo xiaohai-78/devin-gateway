@@ -33,6 +33,10 @@ COPY LICENSE NOTICE THIRD_PARTY_LICENSES /app/
 # 以非 root 运行；debug.enabled=true 时日志写入 /app/logs。
 USER 10001
 
+# 内置默认只监听 127.0.0.1；容器里必须监听所有网卡，端口映射才能连进来。
+# 对外暴露范围由 compose 的 ports（默认 127.0.0.1:<PORT>）决定。
+ENV SERVER_LISTEN=:18089
+
 EXPOSE 18089
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \

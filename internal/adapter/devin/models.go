@@ -85,8 +85,10 @@ func modelLikelySupportsImages(model string) bool {
 }
 
 // resolveReasoningModel 在配置了档位表时把基础模型改写成实际 uid。
-// 未配置的模型保持原样；基础模型缺少 effort 或档位不存在时返回 400 类错误。
-func resolveReasoningModel(model, effort string, tiers map[string]map[string]string) (string, error) {
+// 未配置的模型保持原样。基础 id 本身是上游真实模型（isActual 返回 true）时，
+// 不传 effort 就原样透传——与 /v1/models 不给它打 requires_reasoning_effort 保持一致。
+// 只有纯合成的基础模型缺少 effort，或档位不存在时，才返回 400 类错误。
+func resolveReasoningModel(model, effort string, tiers map[string]map[string]string, isActual func(string) bool) (string, error) {
 	model = strings.TrimSpace(model)
 	effort = strings.ToLower(strings.TrimSpace(effort))
 	if len(tiers) == 0 {
@@ -98,13 +100,36 @@ func resolveReasoningModel(model, effort string, tiers map[string]map[string]str
 	}
 	supported := supportedEfforts(byEffort)
 	if effort == "" {
-		return "", fmt.Errorf("invalid_argument: model %q requires reasoning_effort (supported: %s)", model, supported)
+		if isActual != nil && isActual(model) {
+			return model, nil
+		}
+		return "", fmt.Errorf("invalid_argument: model %q requires reasoning_effort (supported: %s); "+
+			"send \"reasoning_effort\", or use a tier model id directly, e.g. %q",
+			model, supported, exampleTier(byEffort))
 	}
 	target, ok := byEffort[effort]
 	if !ok {
 		return "", fmt.Errorf("invalid_argument: model %q does not support reasoning_effort %q (supported: %s)", model, effort, supported)
 	}
 	return target, nil
+}
+
+// exampleTier 给错误信息挑一个可直接调用的档位 uid：优先 high，其次 medium，否则取排序后第一个。
+func exampleTier(tiers map[string]string) string {
+	for _, effort := range []string{"high", "medium"} {
+		if target, ok := tiers[effort]; ok {
+			return target
+		}
+	}
+	efforts := make([]string, 0, len(tiers))
+	for effort := range tiers {
+		efforts = append(efforts, effort)
+	}
+	sort.Strings(efforts)
+	if len(efforts) == 0 {
+		return ""
+	}
+	return tiers[efforts[0]]
 }
 
 // supportedEfforts 返回排序后的档位列表，保证错误信息稳定。
@@ -214,6 +239,8 @@ func (a *Adapter) fetchCatalog(ctx context.Context) ([]adapter.ModelInfo, error)
 				ID: configured, Created: now, OwnedBy: "devin",
 				// 与 Stream 的本地校验使用同一判断，避免 /v1/models 与真实行为矛盾。
 				SupportsImages: modelLikelySupportsImages(configured),
+				// 只为可发现而补，上游没确认过；档位判断不能把它当真实模型。
+				Placeholder: true,
 			})
 		}
 	}

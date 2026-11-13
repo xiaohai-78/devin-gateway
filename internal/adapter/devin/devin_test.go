@@ -617,7 +617,7 @@ func TestResolveReasoningModel(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			got, err := resolveReasoningModel(testCase.model, testCase.effort, tiers)
+			got, err := resolveReasoningModel(testCase.model, testCase.effort, tiers, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -626,10 +626,54 @@ func TestResolveReasoningModel(t *testing.T) {
 			}
 		})
 	}
-	if _, err := resolveReasoningModel("swe-2", "", tiers); err == nil || !strings.Contains(err.Error(), "requires reasoning_effort") {
+	_, err := resolveReasoningModel("swe-2", "", tiers, nil)
+	if err == nil || !strings.Contains(err.Error(), "requires reasoning_effort") {
 		t.Fatalf("missing effort error = %v", err)
 	}
-	if _, err := resolveReasoningModel("swe-2", "max", tiers); err == nil || !strings.Contains(err.Error(), "supported: high, medium") {
+	// 报错要给出一个可以直接调用的档位 id，客户端发不了 effort 时照抄即可。
+	if !strings.Contains(err.Error(), `"swe-2-high"`) {
+		t.Fatalf("missing effort error has no usable hint: %v", err)
+	}
+	if _, err := resolveReasoningModel("swe-2", "max", tiers, nil); err == nil || !strings.Contains(err.Error(), "supported: high, medium") {
 		t.Fatalf("unsupported effort error = %v", err)
+	}
+}
+
+// TestResolveReasoningModelRealBase 验证基础 id 本身是真实上游模型时，不传 effort 原样透传，
+// 传了 effort 仍改写到档位；这与 /v1/models 不给它标 requires_reasoning_effort 一致。
+func TestResolveReasoningModelRealBase(t *testing.T) {
+	tiers := map[string]map[string]string{
+		"swe-1-7": {"medium": "swe-1-7-medium", "max": "swe-1-7-max"},
+	}
+	isActual := func(id string) bool { return id == "swe-1-7" }
+
+	got, err := resolveReasoningModel("swe-1-7", "", tiers, isActual)
+	if err != nil || got != "swe-1-7" {
+		t.Fatalf("real base without effort = %q, %v; want passthrough", got, err)
+	}
+	got, err = resolveReasoningModel("swe-1-7", "medium", tiers, isActual)
+	if err != nil || got != "swe-1-7-medium" {
+		t.Fatalf("real base with effort = %q, %v", got, err)
+	}
+	if _, err := resolveReasoningModel("swe-1-7", "low", tiers, isActual); err == nil {
+		t.Fatal("unsupported effort on real base should still fail")
+	}
+}
+
+// TestExampleTier 验证错误提示里的档位优先级。
+func TestExampleTier(t *testing.T) {
+	cases := []struct {
+		tiers map[string]string
+		want  string
+	}{
+		{map[string]string{"low": "m-low", "high": "m-high", "medium": "m-medium"}, "m-high"},
+		{map[string]string{"max": "m-max", "medium": "m-medium"}, "m-medium"},
+		{map[string]string{"max": "m-max", "low": "m-low"}, "m-low"},
+		{map[string]string{}, ""},
+	}
+	for _, testCase := range cases {
+		if got := exampleTier(testCase.tiers); got != testCase.want {
+			t.Fatalf("exampleTier(%v) = %q, want %q", testCase.tiers, got, testCase.want)
+		}
 	}
 }

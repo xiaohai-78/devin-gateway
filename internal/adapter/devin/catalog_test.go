@@ -156,3 +156,69 @@ func TestListModelsFallsBackToSnapshot(t *testing.T) {
 		t.Fatalf("families = %#v", manifest.Families)
 	}
 }
+
+// newSnapshotOnlyAdapter 构造一个上游必定失败、只能靠快照工作的 adapter。
+func newSnapshotOnlyAdapter(t *testing.T, snapshot catalogSnapshot, model string) *Adapter {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "models.json")
+	if err := writeCatalogSnapshot(path, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		http.Error(writer, "boom", http.StatusInternalServerError)
+	}))
+	t.Cleanup(upstream.Close)
+	provider, err := New(Config{
+		BaseURL: upstream.URL, Token: "test", Model: model,
+		AutoTiers: true, SnapshotPath: path,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return provider
+}
+
+// TestResolveReasoningIgnoresPlaceholderModel 验证仅为「可发现」而补进目录的 devin.model
+// 不会被当成上游真实模型：它若同时是合成基础 id，不传 effort 仍须本地拒绝。
+func TestResolveReasoningIgnoresPlaceholderModel(t *testing.T) {
+	provider := newSnapshotOnlyAdapter(t, catalogSnapshot{
+		SchemaVersion: 1,
+		GeneratedAt:   time.Now().UTC(),
+		Models: []adapter.ModelInfo{
+			{ID: "swe-2-high", Family: "SWE-2", Effort: "high"},
+			{ID: "swe-2", Placeholder: true}, // fetchCatalog 为 devin.model 补的占位
+		},
+		Families: map[string]map[string]string{"swe-2": {"high": "swe-2-high"}},
+	}, "swe-2")
+	// 模拟目录已加载（例如客户端先调了 /v1/models）。
+	if _, err := provider.ListModels(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := provider.resolveReasoning(context.Background(), "swe-2", ""); err == nil {
+		t.Fatal("placeholder base id was treated as a real upstream model")
+	}
+	got, err := provider.resolveReasoning(context.Background(), "swe-2", "high")
+	if err != nil || got != "swe-2-high" {
+		t.Fatalf("with effort = %q, %v", got, err)
+	}
+}
+
+// TestResolveReasoningLoadsCatalogOnFirstRequest 验证首请求时即使 families 已从快照恢复，
+// 也会先加载目录再判断基础 id 是否是真实模型，而不是因为目录为空把真实模型拒掉。
+func TestResolveReasoningLoadsCatalogOnFirstRequest(t *testing.T) {
+	provider := newSnapshotOnlyAdapter(t, catalogSnapshot{
+		SchemaVersion: 1,
+		GeneratedAt:   time.Now().UTC(),
+		Models: []adapter.ModelInfo{
+			{ID: "swe-1-7", Family: "SWE-1.7"},
+			{ID: "swe-1-7-medium", Family: "SWE-1.7", Effort: "medium"},
+		},
+		Families: map[string]map[string]string{"swe-1-7": {"medium": "swe-1-7-medium"}},
+	}, "swe-1-7")
+
+	got, err := provider.resolveReasoning(context.Background(), "swe-1-7", "")
+	if err != nil || got != "swe-1-7" {
+		t.Fatalf("first request for real base = %q, %v; want passthrough", got, err)
+	}
+}

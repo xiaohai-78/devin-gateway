@@ -14,10 +14,24 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l cmd internal)"
+          if [ -n "$unformatted" ]; then echo "needs gofmt:"; echo "$unformatted"; exit 1; fi
       - run: go vet ./...
       - run: go test ./...
       - name: Shellcheck
         run: shellcheck -x scripts/*.sh
+      - name: PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($file in Get-ChildItem scripts -Filter *.ps1) {
+            $errors = $null; $tokens = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+            foreach ($e in $errors) { Write-Host "$($file.Name):$($e.Extent.StartLineNumber): $($e.Message)"; $failed = $true }
+          }
+          if ($failed) { exit 1 }
 
   build:
     name: Build gateway image

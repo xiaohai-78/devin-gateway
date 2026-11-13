@@ -17,8 +17,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// defaultListen 是未配置 server.listen 时使用的监听地址。
-const defaultListen = ":18089"
+// defaultListen 是未配置 server.listen 时使用的监听地址；只走回环，避免默认免鉴权暴露到局域网。
+const defaultListen = "127.0.0.1:18089"
 
 // Config 保存服务启动所需的全部配置；服务运行期间不会热更新。
 type Config struct {

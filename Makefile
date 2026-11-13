@@ -54,8 +54,10 @@ logs:
 ps:
 	$(COMPOSE_DEV) ps
 
+# 网关开了鉴权时，从 .env 读 AUTH_API_KEY（去掉引号），已在环境里设置的优先
 smoke:
-	@bash scripts/smoke.sh "$(BASE_URL)"
+	@AUTH_API_KEY="$${AUTH_API_KEY:-$$(sed -n 's/^AUTH_API_KEY=//p' .env 2>/dev/null | tail -1 | tr -d "\r'\"")}" \
+	  bash scripts/smoke.sh "$(BASE_URL)"
 
 # token 失效时会打印上游的 401，比空模型列表好排查
 check:
@@ -66,7 +68,7 @@ lint:
 
 test:
 	docker run --rm -v "$$PWD":/src -w /src -e GOFLAGS=-buildvcs=false $(GO_IMAGE) \
-	  sh -c 'go vet ./... && go test ./...'
+	  sh -c 'u=$$(gofmt -l cmd internal); [ -z "$$u" ] || { echo "needs gofmt: $$u"; exit 1; }; go vet ./... && go test ./...'
 
 # CI 用：不启动容器，只验证可构建
 ci:

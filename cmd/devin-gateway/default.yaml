@@ -5,8 +5,11 @@
 #
 # 所有字段都能被环境变量覆盖，见 docs/configuration.zh-CN.md。
 server:
-  # 容器内监听所有网卡；宿主机侧由 compose 的 127.0.0.1:<PORT> 限定只走回环
-  listen: ":18089"
+  # 默认只监听回环，直接跑二进制时局域网访问不到（鉴权默认为空）。
+  # 要对外开放：SERVER_LISTEN=0.0.0.0:18089，并同时设置 AUTH_API_KEY。
+  # 镜像里由 Dockerfile 的 ENV SERVER_LISTEN=:18089 覆盖（容器端口映射需要），
+  # 宿主机侧仍由 compose 的 127.0.0.1:<PORT> 限定只走回环。
+  listen: "127.0.0.1:18089"
 
 catalog:
   # 内置默认不写快照：容器里挂载目录可能不可写

@@ -1,12 +1,17 @@
-# 可选：完整配置示例（默认不生效，镜像内置了同样的默认值）。
+# 完整配置示例。程序不会自动读取本文件——默认在当前目录找 config.yaml，找不到就用内置默认值
+# （只监听 127.0.0.1、免鉴权）。所以在仓库根目录直接运行二进制也只有本机能访问。
 #
-# 用法：docker run -v "$PWD/config.yaml:/app/config.yaml:ro" ...
-#      或 docker-compose.yml 里取消 volumes 注释。
+# 需要时复制一份再改（config.yaml 已在 .gitignore 里，不会被提交）：
+#   cp config.example.yaml config.yaml
+#   二进制：在 config.yaml 所在目录运行，或 -config /path/to/config.yaml
+#   Docker：docker-compose.yml 里取消 volumes 注释，挂到 /app/config.yaml
 #
 # 所有字段都能被环境变量覆盖（见文末），所以通常只需要 DEVIN_TOKEN。
 server:
-  # 容器内监听所有网卡；宿主机侧由 compose 的 127.0.0.1:<PORT> 限定只走回环
-  listen: ":18089"
+  # 默认只走回环。改成 ":18089" 或 "0.0.0.0:18089" 会对局域网开放——先设置 auth.api_key。
+  # 挂进容器时这里的值会被镜像的 SERVER_LISTEN=:18089 覆盖（容器端口映射需要），
+  # 宿主机侧仍由 compose 的 127.0.0.1:<PORT> 限定只走回环。
+  listen: "127.0.0.1:18089"
   # 同时处理的 /v1/* 请求上限；0 或省略 = 1024
   max_concurrency: 1024
 
@@ -28,7 +33,7 @@ devin:
   base_url: "https://server.codeium.com"
   # 留空，由 DEVIN_TOKEN 环境变量覆盖
   token: ""
-  # 上游请求必须带一个模型 uid；可用 DEVIN_MODEL 覆盖
+  # 启动必填；供 -check 使用。不是兜底模型：请求仍须带 model。可用 DEVIN_MODEL 覆盖
   model: "glm-5-2"
   # 代理地址（可选），支持 http:// 与 https://
   proxy: ""

@@ -52,6 +52,9 @@ type ModelInfo struct {
 	ReasoningEfforts []string `json:"reasoning_efforts,omitempty"`
 	// RequiresReasoningEffort 表示调用该模型时必须显式传档位。
 	RequiresReasoningEffort bool `json:"requires_reasoning_effort,omitempty"`
+	// Placeholder 表示该条目不是上游下发的，而是为了让 devin.model 可被发现而补进目录的；
+	// 不能据此认为上游真的接受这个 uid。会写进快照，不会出现在 /v1/models 的输出里。
+	Placeholder bool `json:"placeholder,omitempty"`
 }
 
 // Manifest 是自动生成模型目录的版本化契约。

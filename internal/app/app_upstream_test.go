@@ -310,6 +310,12 @@ func TestUpstreamIdleTimeoutReturns504(t *testing.T) {
 func TestReasoningEffortRewritesModel(t *testing.T) {
 	var received []byte
 	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == testProcedureModels {
+			// 没传 effort 时网关会先查目录，判断 swe-2 是否是上游真实模型；这里目录里没有它。
+			writer.Header().Set("Content-Type", "application/proto")
+			_, _ = writer.Write(pbMessage(1, pbString(22, "swe-2-high")))
+			return
+		}
 		received = readConnectPayload(t, request)
 		writer.Header().Set("Content-Type", "application/connect+proto")
 		writer.WriteHeader(http.StatusOK)

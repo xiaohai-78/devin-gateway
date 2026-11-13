@@ -4,8 +4,28 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"devin-gateway/internal/config"
 )
+
+// TestBuiltInDefaultListensOnLoopback 锁定内置默认配置只绑回环：直接运行二进制且未设
+// AUTH_API_KEY 时，局域网不应能访问。容器场景由 Dockerfile 的 SERVER_LISTEN 覆盖。
+func TestBuiltInDefaultListensOnLoopback(t *testing.T) {
+	// 先 Setenv 让测试结束时恢复原值，再真正清掉，避免空串被当成「已设置」。
+	t.Setenv("SERVER_LISTEN", "")
+	os.Unsetenv("SERVER_LISTEN")
+	missing := filepath.Join(t.TempDir(), "absent.yaml")
+	loaded, err := config.LoadWithFallback(missing, defaultConfigYAML)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Server.Listen != "127.0.0.1:18089" {
+		t.Fatalf("built-in listen = %q, want 127.0.0.1:18089", loaded.Server.Listen)
+	}
+}
 
 type fakeServer struct {
 	shutdown bool

@@ -2,7 +2,8 @@
 
 [返回 README](../README.zh-CN.md) · [English](configuration.md)
 
-`config.yaml` 只在启动时加载。未知 YAML 字段会被拒绝。容器 / systemd 场景可用环境变量覆盖
+网关在启动时读取工作目录下的 `config.yaml`（或 `-config` 指定的文件），只读一次；文件不存在时使用内置默认值。
+仓库里不提交 `config.yaml`，只有 `config.example.yaml`。未知 YAML 字段会被拒绝。容器 / systemd 场景可用环境变量覆盖
 YAML；`devin.reasoning_tiers` 这类嵌套 map 只能写在 YAML 里。
 
 ## 最小配置
@@ -15,17 +16,17 @@ devin:
 ```
 
 `server`、`catalog`、`debug`、`auth` 都是可选的。完整起点见
-[`config.yaml`](../config.yaml)（镜像已内置同样的默认值，通常不需要挂载）。
+[`config.example.yaml`](../config.example.yaml)（镜像和二进制已内置同样的默认值；要用时复制为 `config.yaml`）。
 
 ## 字段
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
-| `server.listen` | `:18089` | HTTP 监听地址 |
+| `server.listen` | `127.0.0.1:18089` | HTTP 监听地址。默认只走回环；容器镜像里设为 `SERVER_LISTEN=:18089`。放宽前先设 `auth.api_key` |
 | `server.max_concurrency` | `1024` | `/v1/*` 并发上限；`0` 使用默认值 |
 | `devin.base_url` | — | Devin Connect 地址，如 `https://server.codeium.com` |
 | `devin.token` | — | 会话 token；未设置时 `/v1/*` 不可用 |
-| `devin.model` | — | 默认模型；请求里的 `model` 优先 |
+| `devin.model` | — | 启动必填。供 `-check` 使用，上游目录没列出时补进 `/v1/models`。请求仍须带 `model` |
 | `devin.proxy` | — | 可选 HTTP/HTTPS 代理；留空直连或走系统代理 |
 | `devin.force_http1` | `true` | 规避上游 HTTP/2 多路复用瓶颈 |
 | `devin.stream_idle_timeout` | `5m` | 上游超时无帧则返回 504；`0` 表示不限制 |
@@ -80,7 +81,8 @@ curl -s localhost:18089/v1/chat/completions \
 
 - Responses 使用 `reasoning: {"effort": "high"}`；
 - Chat 也接受 `thinking: true` 作为 `high` 的简写，`thinking: {"type": "enabled"}` 同样可用；
-- 配置过的基础 id 不带档位时返回 `400`，并列出支持的档位；
+- 合成的基础 id（本身不是上游模型）不带档位时返回 `400`，列出支持的档位，并给出一个可直接调用的档位 id；
+  本身就是上游真实模型的基础 id 不带档位时原样透传；
 - 显式档位 id（如 `swe-2-high`）原样透传；
 - 网关不会自行拼后缀，只使用显式配置或自动生成的映射。
 
@@ -116,13 +118,15 @@ go run ./cmd/devin-gateway -config config.yaml -sync-models
 | `both` | 基础模型和实际 id 都显示 |
 
 `openai` 模式下，没有 family metadata 的模型和 fast/lightning 变体保持可见。
+如果某个 family 的基础 id 本身就是上游真实模型（如 `swe-1-7`），不传 `reasoning_effort` 也能直接调用：
+它会列出可选的 `reasoning_efforts`，但不标 `requires_reasoning_effort`，对应档位 id 也保持可见。
 被隐藏的档位 id 仍可用于请求，但 `/v1/models/{id}` 会返回 404。
 
 ## 调试与鉴权
 
 - `debug.enabled` 会把请求、中间请求、上游帧和响应记录到 `logs/`；
 - 即使关闭 debug，失败也会带请求 ID 输出到 stderr；
-- `auth.api_key` 启用 `Authorization: Bearer <key>` 和 `X-Api-Key: <key>`；为空则不校验；
+- `auth.api_key` 启用 `Authorization: Bearer <key>` 和 `X-Api-Key: <key>`；为空则不校验；`/healthz` 始终不鉴权；
 - session token 不会写入调试日志。
 
 ## 校验

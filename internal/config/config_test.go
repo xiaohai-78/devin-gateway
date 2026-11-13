@@ -80,14 +80,15 @@ func TestLoadEnablesDebugLoggingExplicitly(t *testing.T) {
 	}
 }
 
-// TestValidateUsesDefaultListen 的测试动机是未配置监听地址时仍有一个不常用的默认端口可用。
+// TestValidateUsesDefaultListen 的测试动机是未配置监听地址时仍有一个不常用的默认端口可用，
+// 且默认只绑回环：鉴权默认为空，绑所有网卡等于把额度送给整个局域网。
 func TestValidateUsesDefaultListen(t *testing.T) {
 	var loaded Config
 	if err := loaded.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if loaded.Server.Listen != ":18089" {
-		t.Fatalf("Listen = %q, want :18089", loaded.Server.Listen)
+	if loaded.Server.Listen != "127.0.0.1:18089" {
+		t.Fatalf("Listen = %q, want 127.0.0.1:18089", loaded.Server.Listen)
 	}
 	if loaded.Server.MaxConcurrency != 1024 {
 		t.Fatalf("MaxConcurrency = %d, want 1024", loaded.Server.MaxConcurrency)
@@ -222,10 +223,19 @@ func TestValidateCatalogRefresh(t *testing.T) {
 	}
 }
 
-// TestExampleConfigLoads 验证仓库里的 config.yaml 示例始终可解析。
+// TestExampleConfigLoads 验证仓库里的 config.example.yaml 始终可解析，且只监听回环：
+// 用户照抄示例时不应在免鉴权的情况下把网关开放给局域网。
 func TestExampleConfigLoads(t *testing.T) {
-	if _, err := Load(filepath.Join("..", "..", "config.yaml")); err != nil {
+	t.Setenv("SERVER_LISTEN", "")
+	os.Unsetenv("SERVER_LISTEN")
+	t.Setenv("AUTH_API_KEY", "")
+	os.Unsetenv("AUTH_API_KEY")
+	loaded, err := Load(filepath.Join("..", "..", "config.example.yaml"))
+	if err != nil {
 		t.Fatal(err)
+	}
+	if loaded.Server.Listen != "127.0.0.1:18089" && loaded.Auth.APIKey == "" {
+		t.Fatalf("example listens on %q without auth; keep it on loopback", loaded.Server.Listen)
 	}
 }
 
