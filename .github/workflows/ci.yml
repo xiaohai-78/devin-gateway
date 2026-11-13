@@ -10,7 +10,7 @@ jobs:
     name: Go vet + tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -37,7 +37,7 @@ jobs:
     name: Build gateway image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Prepare dummy env (no real credentials in CI)
         run: |
