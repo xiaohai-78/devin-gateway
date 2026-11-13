@@ -1,5 +1,5 @@
 # 两阶段构建：纯 Go、CGO 关闭，产物是单个静态二进制；运行时镜像只带二进制与许可文件。
-FROM --platform=$BUILDPLATFORM golang:1.26.3-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.0-alpine AS builder
 
 ARG TARGETARCH
 # 构建信息：release-image.yml 传入 tag 与提交短哈希，本地产物默认 dev
