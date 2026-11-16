@@ -22,8 +22,8 @@ func TestProjectModelsModes(t *testing.T) {
 		t.Fatalf("openai visible = %d, want 3: %#v", len(visible), visible)
 	}
 	base := visible[0]
-	if base.ID != "swe-2" || !base.RequiresReasoningEffort {
-		t.Fatalf("base = %#v", base)
+	if base.ID != "swe-2" || base.RequiresReasoningEffort {
+		t.Fatalf("base = %#v; missing effort should be defaulted", base)
 	}
 	if len(base.ReasoningEfforts) != 2 || base.ReasoningEfforts[0] != "high" || base.ReasoningEfforts[1] != "medium" {
 		t.Fatalf("efforts = %#v", base.ReasoningEfforts)
@@ -85,7 +85,7 @@ func TestProjectModelsRealBase(t *testing.T) {
 }
 
 // TestProjectModelsPlaceholderBase 验证为 devin.model 补的占位条目和基础 id 同名时，
-// 仍按合成基础模型展示（requires_reasoning_effort=true），且只出现一次。
+// 仍按合成基础模型展示（省略档位时自动选择），且只出现一次。
 func TestProjectModelsPlaceholderBase(t *testing.T) {
 	actual := []adapter.ModelInfo{
 		{ID: "swe-2-high", Family: "SWE-2", Effort: "high"},
@@ -100,8 +100,8 @@ func TestProjectModelsPlaceholderBase(t *testing.T) {
 			continue
 		}
 		count++
-		if !model.RequiresReasoningEffort {
-			t.Fatalf("placeholder base must be shown as synthetic: %#v", model)
+		if model.Placeholder || model.RequiresReasoningEffort || len(model.ReasoningEfforts) != 1 || model.ReasoningEfforts[0] != "high" {
+			t.Fatalf("placeholder base must be shown as synthetic with automatic effort: %#v", model)
 		}
 	}
 	if count != 1 {

@@ -102,11 +102,12 @@ Register-ScheduledTask devin-gateway -Action $action -Trigger $trigger -Settings
 
 **`model` is required in every request.** Model ids come from `curl 127.0.0.1:18089/v1/models`:
 
-- Entries with `"requires_reasoning_effort": true` (e.g. `claude-sonnet-5-5`) are synthetic base
-  ids: send `reasoning_effort` (one of `reasoning_efforts`), or pick a concrete tier id instead.
-  The error message names one you can copy.
-- Every other id can be called as-is. If it also lists `reasoning_efforts` (e.g. `swe-1-7`),
-  sending `reasoning_effort` routes to that tier; omitting it uses the model's own default.
+- Synthetic base ids (e.g. `gpt-6-1-sol`) automatically use a supported tier when
+  `reasoning_effort` is omitted: prefer `medium`, then `high`, otherwise the first available
+  tier in sorted order. You can still send an explicit `reasoning_effort` (see
+  `reasoning_efforts`) or use a concrete tier id. An unsupported explicit effort still returns 400.
+- A real upstream model id (e.g. `swe-1-7`) is passed through unchanged when effort is omitted.
+  If it lists `reasoning_efforts`, explicitly sending one routes to that tier.
 - The catalog comes from upstream and can include models your plan can't use; those fail with
   `403 permission_denied` — pick another id.
 
@@ -162,7 +163,7 @@ A safer alternative is to keep loopback and reach it over Tailscale or an SSH tu
 | empty model list / 401 | token invalid or expired: rerun `make token`; keep it **single-quoted** in `.env` |
 | `config not found` log line | expected — built-in defaults in use, override with env vars |
 | port in use | `lsof -iTCP:18089`; Docker: change `PORT` in `.env`; binary: set `SERVER_LISTEN` |
-| `requires reasoning_effort` | send `reasoning_effort`, or use the tier id from the error message |
+| `requires reasoning_effort` | the updated gateway defaults synthetic base ids to a supported tier; if this persists, check the running version or send `reasoning_effort` explicitly |
 | `permission_denied` / not available for your account | your plan can't use that model; pick another |
 | LAN clients can't connect (binary) | it listens on loopback by default: `SERVER_LISTEN=0.0.0.0:18089` + `AUTH_API_KEY` |
 | Windows service dies after ~3 days | Task Scheduler 72 h limit; see "Keeping it running on Windows" |

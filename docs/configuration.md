@@ -85,9 +85,10 @@ curl -s localhost:18089/v1/chat/completions \
 
 - Responses use `reasoning: {"effort": "high"}`.
 - Chat also accepts `thinking: true` as shorthand for `high`; `thinking: {"type": "enabled"}` works too.
-- A synthetic base id (one that isn't itself an upstream model) without an effort returns `400`
-  listing the supported efforts and a tier id you can use instead. A base id that *is* a real
-  upstream model is passed through unchanged when no effort is sent.
+- A synthetic base id (one that isn't itself an upstream model) automatically selects a configured
+  tier when effort is omitted: prefer `medium`, then `high`, otherwise the first available tier in
+  sorted order. A base id that *is* a real upstream model is passed through unchanged when no
+  effort is sent. An unsupported explicit effort still returns `400` with the supported values.
 - An explicit tier id such as `swe-2-high` is passed through unchanged.
 - The gateway never invents suffixes; only configured or generated mappings apply.
 
@@ -119,7 +120,7 @@ go run ./cmd/devin-gateway -config config.yaml -sync-models
 | Mode | `/v1/models` |
 | --- | --- |
 | `raw` | Upstream ids such as `swe-2-high` (default) |
-| `openai` | Virtual base models such as `swe-2`, with `reasoning_efforts` and `requires_reasoning_effort`; actual tier ids are hidden but still accepted |
+| `openai` | Virtual base models such as `swe-2`, with `reasoning_efforts` and an automatic tier when effort is omitted; actual tier ids are hidden but still accepted |
 | `both` | Base models and actual ids |
 
 In `openai` mode, models without family metadata and fast/lightning variants stay visible.

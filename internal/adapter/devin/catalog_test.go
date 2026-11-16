@@ -179,7 +179,7 @@ func newSnapshotOnlyAdapter(t *testing.T, snapshot catalogSnapshot, model string
 }
 
 // TestResolveReasoningIgnoresPlaceholderModel 验证仅为「可发现」而补进目录的 devin.model
-// 不会被当成上游真实模型：它若同时是合成基础 id，不传 effort 仍须本地拒绝。
+// 不会被当成上游真实模型：它若同时是合成基础 id，不传 effort 应选择真实档位 uid。
 func TestResolveReasoningIgnoresPlaceholderModel(t *testing.T) {
 	provider := newSnapshotOnlyAdapter(t, catalogSnapshot{
 		SchemaVersion: 1,
@@ -195,8 +195,8 @@ func TestResolveReasoningIgnoresPlaceholderModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := provider.resolveReasoning(context.Background(), "swe-2", ""); err == nil {
-		t.Fatal("placeholder base id was treated as a real upstream model")
+	if got, err := provider.resolveReasoning(context.Background(), "swe-2", ""); err != nil || got != "swe-2-high" {
+		t.Fatalf("placeholder base without effort = %q, %v; want tier id", got, err)
 	}
 	got, err := provider.resolveReasoning(context.Background(), "swe-2", "high")
 	if err != nil || got != "swe-2-high" {

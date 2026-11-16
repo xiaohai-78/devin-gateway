@@ -134,7 +134,7 @@ func projectModels(actual []adapter.ModelInfo, tiers map[string]map[string]strin
 			continue
 		}
 		if _, ok := synthesized[model.ID]; ok && model.Placeholder {
-			// 占位条目和合成的基础模型同名：只保留后者（带 requires_reasoning_effort）。
+			// 占位条目和合成的基础模型同名：只保留后者。
 			continue
 		}
 		if efforts, ok := realBaseEfforts[model.ID]; ok && len(model.ReasoningEfforts) == 0 {
@@ -145,12 +145,11 @@ func projectModels(actual []adapter.ModelInfo, tiers map[string]map[string]strin
 	return visible
 }
 
-// baseModel 根据映射目标合成一个虚拟基础模型。
+// baseModel 根据映射目标合成一个虚拟基础模型；省略档位时会自动选择，故不标记为必填。
 func baseModel(id string, targets []adapter.ModelInfo, efforts map[string]string) adapter.ModelInfo {
 	base := adapter.ModelInfo{
-		ID:                      id,
-		RequiresReasoningEffort: true,
-		ReasoningEfforts:        sortedTiers(efforts),
+		ID:               id,
+		ReasoningEfforts: sortedTiers(efforts),
 	}
 	for index, target := range targets {
 		if index == 0 || (target.Created > 0 && (base.Created == 0 || target.Created < base.Created)) {

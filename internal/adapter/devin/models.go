@@ -86,8 +86,9 @@ func modelLikelySupportsImages(model string) bool {
 
 // resolveReasoningModel 在配置了档位表时把基础模型改写成实际 uid。
 // 未配置的模型保持原样。基础 id 本身是上游真实模型（isActual 返回 true）时，
-// 不传 effort 就原样透传——与 /v1/models 不给它打 requires_reasoning_effort 保持一致。
-// 只有纯合成的基础模型缺少 effort，或档位不存在时，才返回 400 类错误。
+// 不传 effort 就原样透传。合成的基础 id 不传 effort 时映射到一个已配置的档位：
+// 优先 medium，其次 high；避免客户端无法发送 reasoning_effort 时收到 400。
+// 显式指定了不支持的档位仍返回 400。
 func resolveReasoningModel(model, effort string, tiers map[string]map[string]string, isActual func(string) bool) (string, error) {
 	model = strings.TrimSpace(model)
 	effort = strings.ToLower(strings.TrimSpace(effort))
@@ -103,9 +104,11 @@ func resolveReasoningModel(model, effort string, tiers map[string]map[string]str
 		if isActual != nil && isActual(model) {
 			return model, nil
 		}
-		return "", fmt.Errorf("invalid_argument: model %q requires reasoning_effort (supported: %s); "+
-			"send \"reasoning_effort\", or use a tier model id directly, e.g. %q",
-			model, supported, exampleTier(byEffort))
+		// 不凭空拼接 id，只使用显式配置或目录生成的档位映射。
+		if target := defaultTier(byEffort); target != "" {
+			return target, nil
+		}
+		return "", fmt.Errorf("invalid_argument: model %q has no configured reasoning tiers", model)
 	}
 	target, ok := byEffort[effort]
 	if !ok {
@@ -114,9 +117,9 @@ func resolveReasoningModel(model, effort string, tiers map[string]map[string]str
 	return target, nil
 }
 
-// exampleTier 给错误信息挑一个可直接调用的档位 uid：优先 high，其次 medium，否则取排序后第一个。
-func exampleTier(tiers map[string]string) string {
-	for _, effort := range []string{"high", "medium"} {
+// defaultTier 为合成基础模型挑一个已配置的档位 uid：优先 medium，其次 high，否则取排序后第一个。
+func defaultTier(tiers map[string]string) string {
+	for _, effort := range []string{"medium", "high"} {
 		if target, ok := tiers[effort]; ok {
 			return target
 		}

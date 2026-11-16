@@ -81,8 +81,9 @@ curl -s localhost:18089/v1/chat/completions \
 
 - Responses 使用 `reasoning: {"effort": "high"}`；
 - Chat 也接受 `thinking: true` 作为 `high` 的简写，`thinking: {"type": "enabled"}` 同样可用；
-- 合成的基础 id（本身不是上游模型）不带档位时返回 `400`，列出支持的档位，并给出一个可直接调用的档位 id；
-  本身就是上游真实模型的基础 id 不带档位时原样透传；
+- 合成的基础 id（本身不是上游模型）不传档位时自动选择支持的 `medium`，没有则选 `high`，
+  再没有就选排序后第一个可用档位；本身就是上游真实模型的基础 id 不传档位时原样透传；
+- 显式传入不支持的档位时仍返回 `400`，列出支持的档位；
 - 显式档位 id（如 `swe-2-high`）原样透传；
 - 网关不会自行拼后缀，只使用显式配置或自动生成的映射。
 
@@ -114,7 +115,7 @@ go run ./cmd/devin-gateway -config config.yaml -sync-models
 | 模式 | `/v1/models` |
 | --- | --- |
 | `raw` | 上游 id，如 `swe-2-high`（默认） |
-| `openai` | 虚拟基础模型，如 `swe-2`，带 `reasoning_efforts` 和 `requires_reasoning_effort`；实际档位 id 隐藏但仍可调用 |
+| `openai` | 虚拟基础模型，如 `swe-2`，带 `reasoning_efforts`，不传档位时会自动选择；实际档位 id 隐藏但仍可调用 |
 | `both` | 基础模型和实际 id 都显示 |
 
 `openai` 模式下，没有 family metadata 的模型和 fast/lightning 变体保持可见。

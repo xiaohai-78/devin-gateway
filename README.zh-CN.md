@@ -99,11 +99,12 @@ Register-ScheduledTask devin-gateway -Action $action -Trigger $trigger -Settings
 
 **每个请求都必须带 `model`。** 可用 id 从 `curl 127.0.0.1:18089/v1/models` 查：
 
-- 标了 `"requires_reasoning_effort": true` 的（如 `claude-sonnet-5-5`）是合成的基础 id：
-  要么传 `reasoning_effort`（取 `reasoning_efforts` 里的值），要么直接用具体档位 id。
-  报错信息里会给出一个可以照抄的 id。
-- 其他 id 都能直接调用。如果它也列了 `reasoning_efforts`（如 `swe-1-7`），传 `reasoning_effort`
-  会路由到对应档位；不传就用该模型自身的默认行为。
+- 合成的基础 id（如 `gpt-6-1-sol`）不传 `reasoning_effort` 时，网关会自动选已支持的
+  `medium` 档；如果没有 `medium`，选 `high`；两者都没有时选排序后第一个可用档位。
+  你仍可显式传 `reasoning_effort`（参考 `reasoning_efforts`），或直接用具体档位 id。
+  显式传入不支持的档位仍会返回 400。
+- 本身就是上游真实模型的 id（如 `swe-1-7`）不传时仍原样转发；若它列出了
+  `reasoning_efforts`，显式传入则会路由到对应档位。
 - 目录由上游下发，可能包含你的套餐用不了的模型，调用会报 `403 permission_denied`，换一个即可。
 
 ```python
@@ -158,7 +159,7 @@ Docker 则挂载：`-v "$PWD/config.yaml:/app/config.yaml:ro"`。
 | 模型列表空 / 401 | token 无效或过期：重新 `make token`，或检查 `.env` 里是否用**单引号**包住 token |
 | 日志出现 `config not found` | 正常：说明在用内置默认配置（可用环境变量覆盖） |
 | 端口被占 | `lsof -iTCP:18089`；Docker 改 `.env` 里的 `PORT`，二进制设 `SERVER_LISTEN` |
-| `requires reasoning_effort` | 传 `reasoning_effort`，或改用报错里给出的档位 id |
+| `requires reasoning_effort` | 新版网关会为合成基础 id 自动选择档位；如果仍报错，确认服务已更新，或显式传入 `reasoning_effort` |
 | `permission_denied` / 对你的账号不可用 | 套餐不含这个模型，换一个 |
 | 局域网连不上（二进制） | 默认只听回环：`SERVER_LISTEN=0.0.0.0:18089`，并设置 `AUTH_API_KEY` |
 | Windows 上跑了约 3 天自己停了 | 任务计划程序 72 小时时限，见「Windows 常驻运行」 |

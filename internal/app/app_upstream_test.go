@@ -313,7 +313,7 @@ func TestReasoningEffortRewritesModel(t *testing.T) {
 		if request.URL.Path == testProcedureModels {
 			// 没传 effort 时网关会先查目录，判断 swe-2 是否是上游真实模型；这里目录里没有它。
 			writer.Header().Set("Content-Type", "application/proto")
-			_, _ = writer.Write(pbMessage(1, pbString(22, "swe-2-high")))
+			_, _ = writer.Write(append(pbMessage(1, pbString(22, "swe-2-high")), pbMessage(1, pbString(22, "swe-2-medium"))...))
 			return
 		}
 		received = readConnectPayload(t, request)
@@ -330,7 +330,7 @@ func TestReasoningEffortRewritesModel(t *testing.T) {
 		Model:      "swe-2",
 		ForceHTTP1: true,
 		ReasoningTiers: map[string]map[string]string{
-			"swe-2": {"high": "swe-2-high"},
+			"swe-2": {"high": "swe-2-high", "medium": "swe-2-medium"},
 		},
 	})
 	if err != nil {
@@ -353,18 +353,23 @@ func TestReasoningEffortRewritesModel(t *testing.T) {
 		t.Fatalf("upstream request does not contain rewritten model: %x", received)
 	}
 
-	// 基础模型不传档位时必须在本地拒绝，而不是发给上游。
-	missing, err := http.Post(gateway.URL+"/v1/chat/completions", "application/json",
-		strings.NewReader(`{"model":"swe-2","messages":[{"role":"user","content":"hi"}]}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer missing.Body.Close()
-	if missing.StatusCode != http.StatusBadRequest {
-		t.Fatalf("missing effort status = %d", missing.StatusCode)
-	}
-	raw, _ := io.ReadAll(missing.Body)
-	if !bytes.Contains(raw, []byte("requires reasoning_effort")) {
-		t.Fatalf("missing effort body = %s", raw)
+	// 不传档位时优先选择支持的 medium，而不是返回 400。
+	for _, tc := range []struct{ path, body string }{
+		{"/v1/chat/completions", `{"model":"swe-2","messages":[{"role":"user","content":"hi"}]}`},
+		{"/v1/responses", `{"model":"swe-2","input":"hi"}`},
+	} {
+		received = nil
+		missing, err := http.Post(gateway.URL+tc.path, "application/json", strings.NewReader(tc.body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, _ := io.ReadAll(missing.Body)
+		missing.Body.Close()
+		if missing.StatusCode != http.StatusOK {
+			t.Fatalf("missing effort %s status = %d: %s", tc.path, missing.StatusCode, raw)
+		}
+		if !bytes.Contains(received, []byte("swe-2-medium")) {
+			t.Fatalf("missing effort %s did not choose medium: %x", tc.path, received)
+		}
 	}
 }

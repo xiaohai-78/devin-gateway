@@ -626,16 +626,33 @@ func TestResolveReasoningModel(t *testing.T) {
 			}
 		})
 	}
-	_, err := resolveReasoningModel("swe-2", "", tiers, nil)
-	if err == nil || !strings.Contains(err.Error(), "requires reasoning_effort") {
-		t.Fatalf("missing effort error = %v", err)
-	}
-	// 报错要给出一个可以直接调用的档位 id，客户端发不了 effort 时照抄即可。
-	if !strings.Contains(err.Error(), `"swe-2-high"`) {
-		t.Fatalf("missing effort error has no usable hint: %v", err)
+	// 未传档位时优先映射到已配置的 medium，不再让不支持 effort 的客户端收到 400。
+	if got, err := resolveReasoningModel("swe-2", "", tiers, nil); err != nil || got != "swe-2-medium" {
+		t.Fatalf("missing effort = %q, %v; want swe-2-medium", got, err)
 	}
 	if _, err := resolveReasoningModel("swe-2", "max", tiers, nil); err == nil || !strings.Contains(err.Error(), "supported: high, medium") {
 		t.Fatalf("unsupported effort error = %v", err)
+	}
+}
+
+// TestResolveReasoningModelDefaultsToSupportedTier 验证只对合成基础 id 缺省选择档位：
+// 优先 medium；没有 medium 才选 high，其他模型不凭空构造档位。
+func TestResolveReasoningModelDefaultsToSupportedTier(t *testing.T) {
+	tiers := map[string]map[string]string{
+		"gpt-6-1-sol": {"high": "gpt-6-1-sol-high", "low": "gpt-6-1-sol-low", "medium": "gpt-6-1-sol-medium"},
+		"claude-opus": {"high": "claude-opus-high"},
+		"swe-max":     {"max": "swe-max-max"},
+	}
+	for _, tc := range []struct{ model, want string }{
+		{"gpt-6-1-sol", "gpt-6-1-sol-medium"},
+		{"claude-opus", "claude-opus-high"},
+		{"swe-max", "swe-max-max"},
+		{"unknown", "unknown"},
+	} {
+		got, err := resolveReasoningModel(tc.model, "", tiers, nil)
+		if err != nil || got != tc.want {
+			t.Errorf("resolveReasoningModel(%q, missing effort) = %q, %v; want %q", tc.model, got, err, tc.want)
+		}
 	}
 }
 
@@ -660,20 +677,23 @@ func TestResolveReasoningModelRealBase(t *testing.T) {
 	}
 }
 
-// TestExampleTier 验证错误提示里的档位优先级。
-func TestExampleTier(t *testing.T) {
+// TestDefaultTier 验证缺省档位不存在 medium 时的回退顺序。
+func TestDefaultTier(t *testing.T) {
+	if _, err := resolveReasoningModel("empty", "", map[string]map[string]string{"empty": {}}, nil); err == nil {
+		t.Fatal("an empty tier mapping must not resolve to an empty model id")
+	}
 	cases := []struct {
 		tiers map[string]string
 		want  string
 	}{
-		{map[string]string{"low": "m-low", "high": "m-high", "medium": "m-medium"}, "m-high"},
+		{map[string]string{"low": "m-low", "high": "m-high", "medium": "m-medium"}, "m-medium"},
 		{map[string]string{"max": "m-max", "medium": "m-medium"}, "m-medium"},
 		{map[string]string{"max": "m-max", "low": "m-low"}, "m-low"},
 		{map[string]string{}, ""},
 	}
 	for _, testCase := range cases {
-		if got := exampleTier(testCase.tiers); got != testCase.want {
-			t.Fatalf("exampleTier(%v) = %q, want %q", testCase.tiers, got, testCase.want)
+		if got := defaultTier(testCase.tiers); got != testCase.want {
+			t.Fatalf("defaultTier(%v) = %q, want %q", testCase.tiers, got, testCase.want)
 		}
 	}
 }
